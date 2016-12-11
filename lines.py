@@ -1,5 +1,6 @@
 import numpy as np
 from math import sqrt
+from copy import deepcopy
 
 class Lines:
     '''Line Manager Class
@@ -63,37 +64,36 @@ class Lines:
     def transform(self, transformer, npoints=None, nconnections=None):
         lines = Lines(npoints=npoints, nconnections=nconnections)
     def subdivide(self):
-        lines = Lines(npoints=self.points.size * 2, nconnections=self.conns.size * 2)
-        pmap = {}
+        lines = Lines()
+        
+        lines.points = np.copy(self.points)
+        lines.points.resize((self.points.shape[0] * 2, 2))
+
+        lines.conns = np.copy(self.conns)
+        lines.conns.resize((self.conns.shape[0] * 2, 2))
+
+        pid = self.points.shape[0]
+        cid = self.conns.shape[0]
+
         cmap = {}
 
-        pid = 0
-        cid = 0
-
         for i, c in enumerate(self.conns):
+            lines.points[pid] = (self.points[c[0]] + self.points[c[1]]) / 2
+
+            lines.conns[i][1] = pid
+            lines.conns[cid][0] = pid
+            lines.conns[cid][1] = c[1]
+        
             cmap[i] = [i, cid]
-            cid += 1
 
-        for i, c in enumerate(self.conns):
-            pmap[i] = [i, pid]
+            cid += 1
             pid += 1
 
-        pid = 0
-        cid = 0
-
         for line in self.lines:
-            lines.lines.append([cid])
-            for conn_idx in line:
-                conn = self.conns[conn_idx]
-                lines.points[pid] = (self.points[conn[0]] + self.points[conn[1]]) / 2
-                lines.conns[conn][1] = pid
-                lines.conns[cid][0] = pid
-                lines.conns[cid][1] = conn[1]
-                lines.lines[-1].extend([conn_idx, cid])
+            lines.lines.append([])
+            for conn in line:
+                lines.lines[-1].extend(cmap[conn])
 
-                pid += 1
-                cid += 1
-                #print(lines)
         return lines
 
 import unittest as ut
@@ -150,8 +150,10 @@ if __name__ == '__main__':
     lines.conns[3] = [3,0]
     lines.add_line([0,1,2,3])
     lines.gen_metadata(Lines.dist, 9, 0)
+    print(lines)
     sub = lines.subdivide()
     print(lines)
+
     print(sub)
 
     ut.main()
